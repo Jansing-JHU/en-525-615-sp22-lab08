@@ -57,7 +57,7 @@ Finally, go to the *Project Manager* tab in the IOC view and select *Code Genera
 
 ![Code Generator](media/Project_Manager_View_Code_Generator.png)
 
-Save the project and generate code.  After the code generation, make sure that there are separate files for `gpio.c`, `spi.c', `main.c`, `usart.c`, `usb.c`.  If there are not, go back and try again.
+Save the project and generate code.  After the code generation, make sure that there are separate files for `gpio.c`, `spi.c`, `main.c`, `usart.c`, `usb.c`.  If there are not, go back and try again.
 
 Now, copy the files `ILI9341_GFX.c` and `ILI9341_STM32_Driver.c` to the `Src` directory of your project.  Do the same for `5x5_font.h`, `ILI9341_GFX.h` and `ILI9341_STM32_Driver.h` but put those in the `Inc` directory.  You will find these files in the `ILI9341` directory in this assignment repo.
 
@@ -148,6 +148,8 @@ This code will initialize the ILI9341, then fill the screen with a maroon colore
 If your screen look like this:
 
 ![Working Screen](media/Working_Display.png)
+
+Then you have everything working and are ready to proceed to the next two experiments.
 
 ## Experiment 2:  ASCII Art
 
