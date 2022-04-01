@@ -1,4 +1,4 @@
-# Laboratory 7
+# Laboratory 8
 
 In this laboratory, you will interface an LCD display to the NUCLEO-WB55 board.  Typically, this is a tricky process, requiring a lot of support code.  However, the ILI9341 breakout board that the LCD display is tied to makes it fairly easy.  An interesting tutorial to the ILI9341 can be found [here](https://ece353.engr.wisc.edu/external-devices/ili9341/).  The specification for the board can be found [here](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf).
 
