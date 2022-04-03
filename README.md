@@ -1,127 +1,71 @@
 # Laboratory 8
 
-In this laboratory, you will interface an LCD display to the NUCLEO-WB55 board.  Typically, this is a tricky process, requiring a lot of support code.  However, the ILI9341 breakout board that the LCD display is tied to makes it fairly easy.  An interesting tutorial to the ILI9341 can be found [here](https://ece353.engr.wisc.edu/external-devices/ili9341/).  The specification for the board can be found [here](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf).
+In this lab, you will work with a rotary encoder switch.  The switch is a simple knob switch that can be turned either clockwise or counter-clockwise.  To start, you should read [this specification documentation](reference/KY-040%20Rotary%20Encoder.pdf).
 
-In this lab, you will need:
+Here is a illustration of how the switch is constructed:
 
-- NUCLEO-WB55 development board
-- ILI9341 LCD Board + Display
-- Jumper wires
+![Inside of Switch](media/Inside_the_Switch.png)   
+*From Handson Technology KY-040 Data Spec*
 
-The first part of the lab will walk you through how to do a "Hello World" with the display.  In the second part, you will study the display driver and then attempt some text and graphics of your own.
+The position of A and B is such that:
 
-## Experiment 1:  LCD Hello World
+- Rotating the switch CW causes the switch between A and C to change states first,
+- And, rotating the switch CCW causes the switch connecting B and C to change states first.
 
-In this experiment, you will wire the LCD to the NUCLEO board and then interface the ILI9341 to the WB55.  Much of this is "cookbook".  Let's get started.
+This rotation creates square waves that look like:
 
-First, put the ILI9341 on the breadboard.  You only care about the `GND`, `Vin`, `CLK`, `MISO`, `MOSI`, `CS`, `D/C`, and `RST` lines on the display.  You should have pre-soldered pins on that side of the board.  Place your display so that you can easily access those pins.  It should look something like:
+![Square Waves](media/Rotary_Basic_Concept.png)
 
-![LCD Setup](media/Exp_Setup.png)
+Given this, which terminal(s) are tied high (A, B, and/or C) and which terminal(s) are tied to ground (A, B, and/or C)?
 
-Now, wire up the board to the display using the following pinout:
+Thus, understanding where in the transition you are tells you both direction of the rotation and the "switch", which you can keep count of.
 
-| LCD Pin | WB55 Label | WB55 Pin | SPI/GPIO |
-| ------- | ---------- | -------- | ---- |
-| GND     | GND        | CN10 Pin 9 | N/A |
-| Vin     | Vdd        | CN10 Pin 7 | N/A |
-| CLK     | SPI1_SCK   | CN10 Pin 11| PA5 |
-| MISO    | SPI1_MISO  | CN10 Pin 13| PA6 |
-| MOSI    | SPI1_MOSI  | CN10 Pin 15| PA7 |
-| CS      | GPIO       | CN10 Pin 25| PA8 |
-| D/C     | GPIO       | CN10 Pin 19| PA9 |
-| RST     | GPIO       | CN10 Pin 21| PC12|
+## Experiment 1:  Interfacing The Rotary Switch To The TIM Encoder
 
-Now we'll set up the project.  Open up STM32CubeIDE, set the workspace to your repo for this Lab, and open a new project.  The project should be called `lcd_display`.  Set up the project for our NUCLEO board and have it configure for default peripherals.
+### Parts List
 
-First, go to `PA5` in the *Pinout View* and set it to `SPI1_SCK`.
+- P-Nucleo-WB55 board
+- Rotary Dial 
+- Jumper Cables 
 
-Then go to to the *Categories* tab in the *Pinout & Configuration* screen.  In *Categories*, click on *Connectivity* and look for *SPI1*.  Enable *SPI1* for "Full-Duplex Master" and disable the Hardware NSS Signal.  In Parameter Settings, make sure it is 8 bits data size, Motorola Frame Format, and the First Bit is MSB First.
+### Pinout Table
 
-Your configuration should look like:
+PIN | GPIO Setting | WB55 PIN | Connection
+---- | ---- | ----| ----
+PA0 | TIM2_CH1 | CN8 A2 | Rotary Dial - DT
+PA1 | TIM2_CH2 | CN8 A3 | Rotary Dial - CLK
+PC3 | GPIO_Input | CN8 A4 | Rotary Dial - SW
++5V | Vdc | CN6 5 | Rotary Dial - '+'
+GND | GND | CN6 6 | Rotary Dial - GND
 
-![SPI Configuration](media/SPI_Configuration.png)
+![Switch Connected To Board](media/Lab8_ex1.jpg)
 
-Click on the *GPIO Settings* tab under *Configuration*.  The GPIO pins should be set to GPIO mode "Alternate Function Push Pull", GPIO Pull-up/Pull-down to "No pull-up and no pull-down" and the Maximum output speed to "Very high".
+### Procedure
 
-![SPI GPIO Configuration](media/SPI_GPIO_Configuration.png)
-
-Now, go to the *System Core* section under *Categories* and click on *GPIO*.  The typical `LD2`, `LD3`, `LD1`, `B2`, and `B3` are already configured.  Set up three more lines:  `PA8` for CS, `PA9` for D/C, and `PC12` for RST.  You will name the lines `CS`, `DC`, and `RST`.  They will be GPIO outputs with no pull up or pull down and all set to "Very High" maximum speed.  Your configuration should look like:
-
-![GPIO Configuration](media/GPIO_Configuration.png)
-
-Your final Pinout view should look like:
-
-![Pinout View](media/Pinout_View.png)
-
-Finally, go to the *Project Manager* tab in the IOC view and select *Code Generator* on the left side.  Make sure all four of the check boxes under "Generated Files" are selected:
-
-![Code Generator](media/Project_Manager_View_Code_Generator.png)
-
-Save the project and generate code.  After the code generation, make sure that there are separate files for `gpio.c`, `spi.c`, `main.c`, `usart.c`, `usb.c`.  If there are not, go back and try again.
-
-Now, copy the files `ILI9341_GFX.c` and `ILI9341_STM32_Driver.c` to the `Src` directory of your project.  Do the same for `5x5_font.h`, `ILI9341_GFX.h` and `ILI9341_STM32_Driver.h` but put those in the `Inc` directory.  You will find these files in the `ILI9341` directory in this assignment repo.
-
-Finally, open the `main.c` function.  Make sure to include the driver `.h` files:
-
-```
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
-#include "main.h"
-#include "spi.h"
-#include "usart.h"
-#include "gpio.h"
-#include "usb.h"
-
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-#include "ILI9341_STM32_Driver.h"
-#include "ILI9341_GFX.h"
-
-/* USER CODE END Includes */
-```
-
-> NOTE:  For whatever reason, I had to add the `#include "usb.h"` to the main function.  I'm not sure why it wasn't automagically included, but on my version, it wasn't and without it, you get some distracting warnings.
-
-Now, in the main function, you should modify to look like:
-
-```
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-/* Configure the peripherals common clocks */
-  PeriphCommonClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
+**Build Procedure**
+1) Configure hardware according to above schematic and pinout
+2) Set up a new STM32 project named `rotary_dial`
+3) Under Pinout and Configuration, select Timers
+4) Select TIM2 and configure the following options:  
+    a) Under mode --> Combined Channels --> Select "Encoder Mode".   
+    b) Under Parameter Settings, Counter Period --> 65535, auto-reload preload --> Enable, Encoder Mode --> TI1 and TI2, Input Filter --> 10.  
+    c) You will see in the pinout view that PA0 and PA1 are now autopopulated for TIM2 CH1 and CH2:  ![Pinout](media/Timer_Pin_Config.png)  
+5) From Pinout and Configuration select Connectivity
+6) Ensure your USART setting are set according to previous labs in order to send messages through the serial port
+7) Set up GPIO Port C Pin 3 to be a GPIO_Input, pulled up
+8) Under Project Manager --> Code Generator --> select all the checkboxes for "Generated Files" section
+9) Save and generate code
+10) Add the following code to your main.c
+~~~
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_USB_PCD_Init();
-  MX_SPI1_Init();
-
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  ILI9341_Init(); // Initialize LCD driver
+  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL); //dont forget this or it will say nothing but 0 ad the encoder wont start....
+  uint8_t MSG[50] = {'\0'};
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -131,69 +75,94 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	    HAL_Delay(2000);
-		ILI9341_Fill_Screen(MAROON);
-		ILI9341_Set_Rotation(SCREEN_VERTICAL_1);
-		ILI9341_Draw_Text("Hello World!", 10, 10, WHITE, 1, MAROON);
-		HAL_Delay(2000);
-		ILI9341_Fill_Screen(WHITE);
+      if(HAL_GPIO_ReadPin (GPIOC, GPIO_PIN_3))
+      {
+          sprintf(MSG, "Encoder Switch Released, Encoder Ticks = %u\n\r", ((TIM2->CNT)>>2));
+          HAL_UART_Transmit(&huart1, MSG, sizeof(MSG), 100);
+      }
+      else
+      {
+          sprintf(MSG, "Encoder Switch Pressed,  Encoder Ticks = %u\n\r", ((TIM2->CNT)>>2));
+          HAL_UART_Transmit(&huart1, MSG, sizeof(MSG), 100);
+      }
 
   }
   /* USER CODE END 3 */
 }
+~~~
+10) Build code and create a Debugger
+11) Run code with the serial port connected to terminal interface
+12) Turn the dial to see the rotary change values according to your encoder. 
+
+> Note:  Take note of which way your dial turns to increase or decrease values for the dial. Notice in the code that the rotary button is in a natural "high" position.
+
+**Using Scopy to view the dial output**
+1) Properly connect ADALM2000 channels to ground
+2) Connect Channels to CLK and DT inputs. 
+3) Run code
+4) As you turn the dial you will notice the two separate wave edges change distances. This is how the encoder reads the values of the dial. 
+
+While you are debugging or running the code, turning the dial clockwise should cause the counter to count up.  Conversely, turning the dial counter-clockwise should cause the counter to count down.  When you press down on the dial (which is a SPST switch), you should see the text change from "released" to "pressed".
+
+## Experiment 2:  Rotary Switch As Dimmer
+
+You will now set up the switch to act as a dimmer for an LED.  To understand PWM, you might want to refer to [this page](https://www.codeinsideout.com/blog/stm32/timer/).  The whole page discusses HAL Timers (as opposed to the FreeRTOS timers we have used in previous labs).  
+
+### Parts
+
+- P-Nucleo-WB55 board
+- Rotary Dial 
+- 10k Resistor 
+- 1uf Capicitor 
+- Jumper Cables 
+- LED light
+- 220 ohm resistor 
+
+### Schematic/Pinout
+
+![Schematic](media/Exp2_Schematic.png)
+
+PIN | GPIO Setting | WB55 PIN | Connection
+---- | ---- | ----| ----
+PA0 | TIM2_CH1 ENCODER | CN8 A2 | Rotary Dial - DT
+PA1 | TIM2_CH2 ENCODER | CN8 A3 | Rotary Dial - CLK
+PB4 | GPIO_Input | CN10 4 | Rotary Dial - SW
++5V | Vdc | CN6 5 | Rotary Dial - '+'
+GND | GND | CN6 6 | Rotary Dial - GND
+PB8 | TIM16_CH1 PWM | CN10 3 | LED
+
+![Photo of Circuit](media/Lab8_ex2.jpg)
+
+### Procedure
+
+1) Configure hardware according to above schematic and pinout
+2) Set up a new STM32 project named `led_dimmer`
+3) Configure your project for TIM2, USART, and the PB4 as a GPIO_Input for the SW (note that the GPIO Port and Pin are DIFFERENT for this experiment from the last experiment). TIM2 is an encoder like the last experiment and USART is a Serial port like the last experiment.
+4) Select TIM16 and configure the following options:  
+    a) Under mode --> Channel 1 --> Select "PWM Generation Channel 1".   
+    b) Under Parameter Settings, Counter Period --> 65535, auto-reload preload --> Enable.  
+    c) Make sure that PWM Generation Channel 1 --> Mode is set to "PWM mode 1"  
+    d) You will see in the pinout view that PB8 are now autopopulated for TIM16_CH1.   
+5) Under Project Manager --> Code Generator --> select all the checkboxes for "Generated Files" 
+6) Save and generate code.
+7) In this experiment, you will modify your code so that you start the encoder and the PWM timers.
+```
+/* USER CODE BEGIN 2 */
+  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL); //added to start encoder
+  HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1); //added to start PWM output
+```
+8) Design code that turns up or down the brightness of the LED based on the rotary switch rotation.  The LED should start at the lowest brightness (duty cycle of 0%).  If the rotary switch button (SW) is pressed, then the LED is reset to a duty cycle of 0%.  If the dial is turned CW, this corresponds to "up", which should cause the LED to get brighter.  If the dial is turned CCW, this corresponds to "down", which should cause the LED to get dimmer.  Do not let the TIM2 encoder "wrap around".  That is, if the LED gets to 0% duty cycle, it should stay there until the dial is turned CW (no matter how much the user keeps turning the dial CCW).  Likewise, if the LED gets to full brightness, it should stay at full brightness until the dial is turned CCW (no matter how much the user keeps turning the dial CW).
+
+You might choose to use the oscilloscope to make sure your PWM output is working properly.  You can also set the TIM2 encoder count and TIM16 duty cycle value directly using
+```
+		TIM2->CNT = 0;
+		TIM16->CCR1 = 0;
 ```
 
-This code will initialize the ILI9341, then fill the screen with a maroon colored background and write the words "Hello World!".  The screen will blank to white, then draw the screen all over again.
+This, of course, resets the counter to zero and sets the CCR1 duty cycle register to zero.
 
-If your screen look like this:
+> NOTE 1:  For my version of STM32CubeIDE, I have to include `#include "usb.h"` at the top of `main.c`.  For whatever reason, the automatic code generation doesn't do it.  Not including it doesn't mess up the project, but it will generate one or more warnings during build.
 
-![Working Screen](media/Working_Display.png)
+> NOTE 2:  If you take each and every count of the encoder to increase the duty cycle from 0 to 65535, it will take *forever* for you to get to 100% duty cycle.  So, you might choose to restrict the encoder output to values between 0 and 127.  There is more than one way to do this.  From there, you can scale (or bit shift or whatever) to get between 0 and 65335 for the PWM generator.
 
-Then you have everything working and are ready to proceed to the next two experiments.
-
-## Experiment 2:  ASCII Art
-
-Study the ILI9341 driver.  Carefully understand how it works.  Using the driver code, draw the following ASCII art on the LCD display:
-
-```
-                       .,,uod8B8bou,,.
-              ..,uod8BBBBBBBBBBBBBBBBRPFT?l!i:.
-         ,=m8BBBBBBBBBBBBBBBRPFT?!||||||||||||||
-         !...:!TVBBBRPFT||||||||||!!^^""'   ||||
-         !.......:!?|||||!!^^""'            ||||
-         !.........||||                     ||||
-         !.........||||  ##                 ||||
-         !.........||||                     ||||
-         !.........||||                     ||||
-         !.........||||                     ||||
-         !.........||||                     ||||
-         `.........||||                    ,||||
-          .;.......||||               _.-!!|||||
-   .,uodWBBBBb.....||||       _.-!!|||||||||!:'
-!YBBBBBBBBBBBBBBb..!|||:..-!!|||||||!iof68BBBBBb....
-!..YBBBBBBBBBBBBBBb!!||||||||!iof68BBBBBBRPFT?!::   `.
-!....YBBBBBBBBBBBBBBbaaitf68BBBBBBRPFT?!:::::::::     `.
-!......YBBBBBBBBBBBBBBBBBBBRPFT?!::::::;:!^"`;:::       `.
-!........YBBBBBBBBBBRPFT?!::::::::::^''...::::::;         iBBbo.
-`..........YBRPFT?!::::::::::::::::::::::::;iof68bo.      WBBBBbo.
-  `..........:::::::::::::::::::::::;iof688888888888b.     `YBBBP^'
-    `........::::::::::::::::;iof688888888888888888888b.     `
-      `......:::::::::;iof688888888888888888888888888888b.
-        `....:::;iof688888888888888888888888888888888899fT!
-          `..::!8888888888888888888888888888888899fT|!^"'
-            `' !!988888888888888888888888899fT|!^"'
-                `!!8888888888888888899fT|!^"'
-                  `!988888888899fT|!^"'
-                    `!9899fT|!^"'
-                      `!^"'
-```
-
-Call this project `ascii_art` in your workspace.  With the screen in the vertical orientation, you should be able to fit this graphic onto the screen in toto.
-
-## Experiment 3:  Tic-Tac-Toe Board
-
-Create a project called `tic-tac-toe` in your workspace.  Using the ILI9341 and the provided driver, draw a tic-tac-toe board on the LCD display.  The background should be yellow and the lines should be navy blue.
-
-## Lab Report
-
-For your lab report, include a photo or video of Experiment 1.  There is no need to write anything else for Experiment 1.  You should write the usual report format for Experiments 2 and 3.
+> NOTE 3:  Include a o-scope plot of your PWM wave (at some duty cycle that illustrates the wave) in your report.
